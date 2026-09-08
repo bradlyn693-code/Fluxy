@@ -36,14 +36,19 @@ export async function getUserByOpenId(openId: string) {
 export async function getDashboardData(userId: number) {
   const db = await getDb();
   if (!db) return { proxies: [], tempEmails: [], numbers: [], orders: [], transactions: [] };
-  const [proxyRows, emailRows, numberRows, orderRows, transactionRows] = await Promise.all([
-    db.select().from(proxies).where(eq(proxies.userId, userId)).orderBy(desc(proxies.createdAt)),
-    db.select().from(tempEmails).where(eq(tempEmails.userId, userId)).orderBy(desc(tempEmails.createdAt)),
-    db.select().from(foreignNumbers).where(eq(foreignNumbers.userId, userId)).orderBy(desc(foreignNumbers.createdAt)),
-    db.select().from(orders).where(eq(orders.userId, userId)).orderBy(desc(orders.createdAt)).limit(20),
-    db.select().from(walletTransactions).where(eq(walletTransactions.userId, userId)).orderBy(desc(walletTransactions.createdAt)).limit(20),
-  ]);
-  return { proxies: proxyRows, tempEmails: emailRows, numbers: numberRows, orders: orderRows, transactions: transactionRows };
+  try {
+    const [proxyRows, emailRows, numberRows, orderRows, transactionRows] = await Promise.all([
+      db.select().from(proxies).where(eq(proxies.userId, userId)).orderBy(desc(proxies.createdAt)),
+      db.select().from(tempEmails).where(eq(tempEmails.userId, userId)).orderBy(desc(tempEmails.createdAt)),
+      db.select().from(foreignNumbers).where(eq(foreignNumbers.userId, userId)).orderBy(desc(foreignNumbers.createdAt)),
+      db.select().from(orders).where(eq(orders.userId, userId)).orderBy(desc(orders.createdAt)).limit(20),
+      db.select().from(walletTransactions).where(eq(walletTransactions.userId, userId)).orderBy(desc(walletTransactions.createdAt)).limit(20),
+    ]);
+    return { proxies: proxyRows, tempEmails: emailRows, numbers: numberRows, orders: orderRows, transactions: transactionRows };
+  } catch (error) {
+    console.warn("[Database] Dashboard read unavailable; returning empty state:", error);
+    return { proxies: [], tempEmails: [], numbers: [], orders: [], transactions: [] };
+  }
 }
 
 export async function createOrder(userId: number, input: { productType: string; packageName: string; priceUsd: string }) {
