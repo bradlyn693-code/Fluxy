@@ -34,6 +34,15 @@ describe("marketplace procedures", () => {
     await expect(caller.dashboard.summary()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
+  it("rejects temp-mail plan checks without an authenticated session", async () => {
+    const caller = appRouter.createCaller({
+      user: null,
+      req: { protocol: "https", headers: {} } as TrpcContext["req"],
+      res: {} as TrpcContext["res"],
+    });
+    await expect(caller.tempMail.planStatus()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
   it("rejects invalid order payloads before any write", async () => {
     const caller = appRouter.createCaller(createContext());
     await expect(caller.orders.create({ productType: "", packageName: "", priceUsd: -1 })).rejects.toMatchObject({ code: "BAD_REQUEST" });

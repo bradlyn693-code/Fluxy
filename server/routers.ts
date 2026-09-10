@@ -3,7 +3,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { createOrder, createTempEmail, createWalletTransaction, getDashboardData } from "./db";
+import { createOrder, createTempEmail, createWalletTransaction, getDashboardData, hasActiveProxyPlan } from "./db";
 
 export const appRouter = router({
   system: systemRouter,
@@ -25,7 +25,11 @@ export const appRouter = router({
     deposit: protectedProcedure.input(z.object({ amountUsd: z.coerce.number().positive(), method: z.string().min(1) })).mutation(async ({ ctx, input }) => createWalletTransaction(ctx.user.id, { ...input, amountUsd: input.amountUsd.toFixed(2) })),
   }),
   tempMail: router({
-    create: protectedProcedure.input(z.object({ email: z.string().email() })).mutation(async ({ ctx, input }) => createTempEmail(ctx.user.id, input.email)),
+    planStatus: protectedProcedure.query(({ ctx }) => hasActiveProxyPlan(ctx.user.id)),
+    create: protectedProcedure.input(z.object({ email: z.string().email() })).mutation(async ({ ctx, input }) => {
+      if (!(await hasActiveProxyPlan(ctx.user.id))) throw new Error("Please buy plan");
+      return createTempEmail(ctx.user.id, input.email);
+    }),
   }),
 });
 
