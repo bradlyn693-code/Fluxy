@@ -64,8 +64,8 @@ export async function createWalletTransaction(userId: number, input: { amountUsd
 }
 
 export async function createTempEmail(userId: number, email: string) {
-  const db = await getDb(); if (!db) return undefined;
   if (!(await hasActiveProxyPlan(userId))) throw new Error("Please buy plan");
+  const db = await getDb(); if (!db) return undefined;
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const [created] = await db.insert(tempEmails).values({ userId, email, expiresAt }).$returningId();
   return created;
@@ -75,9 +75,11 @@ export async function hasActiveProxyPlan(userId: number) {
   const db = await getDb();
   if (!db) return false;
   try {
+    const [account] = await db.select({ walletBalance: users.walletBalance }).from(users).where(eq(users.id, userId)).limit(1);
+    if (account && Number(account.walletBalance) > 0) return true;
     const [proxy] = await db.select({ id: proxies.id }).from(proxies).where(and(eq(proxies.userId, userId), eq(proxies.status, "active"), or(isNull(proxies.expiresAt), gt(proxies.expiresAt, new Date())))).limit(1);
     if (proxy) return true;
-    const [paidOrder] = await db.select({ id: orders.id }).from(orders).where(and(eq(orders.userId, userId), eq(orders.productType, "proxy"), or(eq(orders.status, "paid"), eq(orders.status, "completed"), eq(orders.status, "active"), eq(orders.status, "success")))).limit(1);
+    const [paidOrder] = await db.select({ id: orders.id }).from(orders).where(and(eq(orders.userId, userId), or(eq(orders.productType, "proxy"), eq(orders.productType, "plan"), eq(orders.productType, "subscription"), eq(orders.packageName, "STARTER"), eq(orders.packageName, "PRO"), eq(orders.packageName, "ELITE")), or(eq(orders.status, "paid"), eq(orders.status, "completed"), eq(orders.status, "active"), eq(orders.status, "success")))).limit(1);
     return Boolean(paidOrder);
   } catch (error) {
     console.warn("[Database] Proxy-plan check unavailable; denying temp-mail generation:", error);
