@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNull, or } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, foreignNumbers, orders, proxies, tempEmailMessages, tempEmails, users, walletTransactions } from "../drizzle/schema";
 import { ENV } from "./_core/env";
@@ -60,6 +60,13 @@ export async function createOrder(userId: number, input: { productType: string; 
 export async function createWalletTransaction(userId: number, input: { amountUsd: string; method: string }) {
   const db = await getDb(); if (!db) return undefined;
   const [created] = await db.insert(walletTransactions).values({ userId, type: "deposit", amountUsd: input.amountUsd, method: input.method, status: "pending" }).$returningId();
+  return created;
+}
+
+export async function creditWalletBalance(userId: number, amountUsd: string) {
+  const db = await getDb(); if (!db) return undefined;
+  await db.update(users).set({ walletBalance: sql`${users.walletBalance} + ${amountUsd}` }).where(eq(users.id, userId));
+  const [created] = await db.insert(walletTransactions).values({ userId, type: "deposit", amountUsd, method: "swift_wallet", status: "completed" }).$returningId();
   return created;
 }
 

@@ -35,9 +35,10 @@ import {
   Plus,
   Search,
   Send,
-  Settings,
-  ShieldCheck,
   Signal,
+  Settings,
+  Sun,
+  ShieldCheck,
   Smartphone,
   Sparkles,
   TrendingUp,
@@ -77,7 +78,7 @@ const navItems = [
   { label: "My Proxies", path: "/proxies", icon: Globe2, badge: "0" },
   { label: "Temp Mail", path: "/temp-mail", icon: Mail },
   { label: "Foreign Numbers", path: "/numbers", icon: Smartphone },
-  { label: "Wallet", path: "/wallet", icon: Wallet },
+  { label: "Wallet", path: "/app/wallet", icon: Wallet },
   { label: "Pricing", path: "/pricing", icon: Crown },
   { label: "Settings", path: "/settings", icon: Settings },
 ];
@@ -195,6 +196,48 @@ function Numbers({ openPaywall }: { openPaywall: (name: string, price: number) =
 
 function ServiceModal({ country, close, buy }: { country: typeof numberCountries[0]; close: () => void; buy: (name: string, price: number) => void }) { const [service, setService] = useState("WhatsApp"); const price = Number(country.price.replace("$", "")); return <Modal close={close}><div className="mb-5 flex items-start justify-between"><div><div className="mb-2 text-3xl">{country.flag}</div><h2 className="font-display text-lg tracking-widest text-white">GET {country.country.toUpperCase()}</h2><p className="mt-1 text-[10px] text-white/40">Choose a service to route your verification code.</p></div><IconButton label="Close" onClick={close}><X size={16} /></IconButton></div><label className="mb-2 block font-mono text-[9px] tracking-widest text-white/40">SELECT SERVICE</label><select value={service} onChange={e => setService(e.target.value)} className="mb-6 h-11 w-full rounded-lg border border-white/10 bg-[#0b0b1b] px-3 text-xs text-white outline-none focus:border-cyan-300/50">{["WhatsApp", "Telegram", "Gmail", "Tinder", "Facebook", "Instagram"].map(s => <option key={s}>{s}</option>)}</select><button onClick={() => { close(); buy(`${country.country} · ${service} Number`, price); }} className="btn-primary flex w-full items-center justify-center gap-2 rounded-lg py-3 text-[10px] font-bold tracking-widest">GET NUMBER · {country.price} USD <ArrowRight size={14} /></button></Modal>; }
 
+function WalletRecharge() {
+  const PAY_URL = "https://courtneytech.xyz/pay/proxies";
+  const { user } = useAuth();
+  const [showPayFrame, setShowPayFrame] = useState(false);
+  const [payUrl, setPayUrl] = useState("");
+  const [amount, setAmount] = useState("");
+  const [phone, setPhone] = useState((user as (typeof user & { phone?: string }) | null)?.phone || "254740183688");
+  const creditedRef = useRef(false);
+  const creditMutation = trpc.wallet.credit.useMutation();
+  const balance = Number((user as (typeof user & { walletBalance?: string | number }) | null)?.walletBalance ?? 0);
+
+  useEffect(() => {
+    const handleMessage = async (event: MessageEvent) => {
+      if (event.data?.type !== "PAYMENT_SUCCESS" && event.data?.status !== "success") return;
+      if (!user || !Number(amount) || creditMutation.isPending || creditedRef.current) return;
+      creditedRef.current = true;
+      try {
+        await creditMutation.mutateAsync({ amountUsd: Number(amount) });
+        setShowPayFrame(false);
+        toast.success("Wallet credited!");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Unable to credit wallet");
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [amount, creditMutation, user]);
+
+  const startPayment = () => {
+    if (!amount) { toast.error("Enter amount"); return; }
+    if (!user) { toast.error("Please log in to recharge your wallet"); return; }
+    const params = new URLSearchParams({ amount, phone, email: user.email || "", user_id: String(user.id), embed: "true", hideHeader: "true" });
+    setPayUrl(`${PAY_URL}?${params.toString()}`);
+    creditedRef.current = false;
+    setShowPayFrame(true);
+  };
+
+  if (showPayFrame) return <div className="fixed inset-0 z-[999] flex flex-col bg-[#0A1120]"><div className="flex items-center justify-between border-b border-[#1E304F] p-4"><button onClick={() => setShowPayFrame(false)} className="text-white">← Back to Wallet</button><span className="font-bold text-white">Pay {amount} KES</span><div className="w-8" /></div><iframe title="Swift Wallet payment" src={payUrl} className="w-full flex-1 border-0" allow="payment; clipboard-write" sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation" /></div>;
+
+  return <div className="min-h-screen bg-[#0A1120] px-4 py-4 text-white"><div className="mx-auto max-w-[400px]"><header className="flex items-center justify-between"><button aria-label="Open menu" className="flex h-11 w-11 flex-col items-center justify-center gap-1 rounded-xl border border-[#25344F] bg-[#13203A]"><span className="h-0.5 w-5 bg-white" /><span className="h-0.5 w-5 bg-white" /><span className="h-0.5 w-5 bg-white" /></button><div className="text-center"><h1 className="text-[22px] font-bold leading-6">Recharge</h1><p className="text-xs text-[#7A8BA9]">Fund deposit via M-Pesa Swift Wallet</p></div><div className="flex gap-2"><button aria-label="Toggle theme" className="flex h-10 w-10 items-center justify-center rounded-full border border-[#25344F] text-white"><Sun size={17} /></button><div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#FF3A6B] to-[#FF6B35] text-xs font-bold text-white">CE</div></div></header><section className="mt-5 rounded-[22px] border border-[#1E304F] bg-[#12213A] p-5"><div className="text-[32px]">🏛️</div><div className="mt-3 text-[11px] font-bold uppercase tracking-widest text-[#5F728E]">Current Deposit</div><div className="mt-1 text-[28px] font-bold">KES {balance.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div><p className="mt-1 text-[13px] text-[#7A8BA9]">Available to buy packs · claim gates · fees</p></section><section className="mt-5 rounded-[22px] border border-[#1E304F] bg-[#12213A] p-5"><h2 className="text-[22px] font-bold">Pay with M-Pesa 📲</h2><p className="mt-1 text-[13px] text-[#7A8BA9]">Enter amount — STK push arrives on your phone via Swift Wallet.</p><label className="mt-5 block text-sm">Amount (KES)</label><input value={amount} onChange={e => setAmount(e.target.value)} inputMode="decimal" placeholder="e.g. 5000" className="mt-2 h-14 w-full rounded-2xl border border-[#25344F] bg-[#0A1120] px-5 text-white placeholder:text-[#5F728E] outline-none" /><label className="mt-4 block text-sm">M-Pesa phone (optional)</label><input value={phone} onChange={e => setPhone(e.target.value)} inputMode="tel" className="mt-2 h-14 w-full rounded-2xl border border-[#25344F] bg-[#0A1120] px-5 text-white outline-none" /><button onClick={startPayment} className="mt-6 h-14 w-full rounded-full bg-gradient-to-r from-[#FF2E6B] to-[#FF6A30] text-[15px] font-bold text-white">Pay with M-Pesa (Swift Wallet)</button></section></div></div>;
+}
+
 function WalletPage() { const [amount, setAmount] = useState("25"); const [method, setMethod] = useState("CARD"); const methods = ["PAYPAL", "CARD", "CRYPTO", "M-PESA"]; return <div className="mx-auto max-w-[1100px] fade-up"><PageHeading eyebrow="SETTLEMENT / 05" title="WALLET" description="Fund your grid balance and keep provisioning frictionless. All values settle in USD." /><div className="mb-5 rounded-2xl border border-cyan-300/30 bg-gradient-to-br from-cyan-300/[.11] via-[#101226] to-purple-500/[.08] p-6 neon-border md:p-8"><div className="flex items-start justify-between"><div><div className="font-mono text-[9px] tracking-[.24em] text-cyan-300">AVAILABLE BALANCE</div><div className="mt-4 font-display text-4xl tracking-wider text-white md:text-5xl">$0<span className="text-cyan-300">.00</span></div><div className="mt-3 flex items-center gap-2 text-[10px] text-white/35"><LockKeyhole size={12} className="text-lime-300" /> Funds are encrypted at rest</div></div><Wallet className="text-cyan-300/70" size={26} /></div></div><div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]"><div className="glass rounded-2xl p-6"><h2 className="font-display text-sm tracking-[.14em] text-white">ADD FUNDS</h2><p className="mt-1 text-[10px] text-white/35">Choose an amount and payment method for your Wallet.</p><div className="relative mt-6"><span className="absolute left-3 top-3 text-sm text-white/30">$</span><input value={amount} onChange={e => setAmount(e.target.value)} className="h-11 w-full rounded-lg border border-white/10 bg-white/[.04] pl-8 pr-3 font-mono text-sm text-white outline-none focus:border-cyan-300/50" /></div><div className="mt-3 grid grid-cols-3 gap-2">{["10", "25", "50"].map(a => <button key={a} onClick={() => setAmount(a)} className={`rounded-lg border py-2 font-mono text-[10px] ${amount === a ? "border-cyan-300/50 bg-cyan-300/10 text-cyan-300" : "border-white/10 text-white/40"}`}>${a}</button>)}</div><div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">{methods.map(item => <button key={item} onClick={() => setMethod(item)} className={`rounded-lg border p-2 text-[9px] font-bold tracking-widest transition ${method === item ? "border-cyan-300/60 bg-cyan-300/10 text-cyan-300" : "border-white/10 text-white/35 hover:border-cyan-300/30"}`}>{item}</button>)}</div><button onClick={() => toast.success("Wallet deposit ready", { description: `$${(Number(amount) || 25).toFixed(2)} via ${method}` })} className="btn-primary mt-5 flex w-full items-center justify-center gap-2 rounded-lg py-3 text-[10px] font-bold tracking-widest">FUND WALLET <ArrowRight size={14} /></button></div><div className="glass overflow-hidden rounded-2xl"><div className="border-b border-white/10 px-6 py-5"><h2 className="font-display text-sm tracking-[.14em] text-white">TRANSACTION HISTORY</h2><p className="mt-1 text-[10px] text-white/35">Deposits and purchases</p></div><EmptyTable icon={ArrowDownLeft} title="No transactions yet" description="Your wallet history will appear here." /></div></div><p className="mt-5 text-center text-[10px] text-white/25">All transactions in USD. Non-refundable after product delivery. See Refund Policy in Terms.</p></div>; }
 function Pricing({ openPaywall }: { openPaywall: (name: string, price: number) => void }) { const plans = [{ name: "STARTER", price: "$14.68", annual: "$105.69 / year", color: "cyan", features: ["10 Residential Proxies", "10 Temp Mails", "5 Numbers", "10GB Bandwidth"] }, { name: "PRO", price: "$29.99", annual: "$199.99 / year", color: "pink", popular: true, features: ["50 Proxies", "Unlimited Mails", "20 Numbers", "100GB Bandwidth", "Priority Support", "API Access"] }, { name: "ELITE", price: "$99.99", annual: "$799.99 / year", color: "gold", features: ["200 Proxies", "Unlimited Everything", "Unlimited Bandwidth", "API Access", "Dedicated Manager"] }]; return <div className="mx-auto max-w-[1200px] fade-up"><PageHeading eyebrow="ACCESS PLANS / 06" title="PRICING" description="Scale your private infrastructure. Simple USD pricing, no hidden routes." action={<div className="rounded-full border border-cyan-300/20 bg-cyan-300/[.05] px-3 py-2 font-mono text-[9px] text-cyan-200">MONTHLY / ANNUAL - SAVE UP TO 40%</div>} /><div className="grid gap-5 lg:grid-cols-3">{plans.map((plan, i) => <div key={plan.name} className={`relative rounded-2xl border p-6 transition hover:-translate-y-1 ${plan.color === "pink" ? "border-pink-300/60 bg-pink-300/[.06] magenta-border lg:scale-105" : plan.color === "gold" ? "border-yellow-300/35 bg-yellow-300/[.035]" : "border-cyan-300/25 bg-cyan-300/[.04]"}`}>{plan.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-pink-400 px-3 py-1 text-[8px] font-bold tracking-[.2em] text-[#210817]">MOST POPULAR</div>}<div className="mb-6 flex items-center justify-between"><span className={`font-display text-xs tracking-[.2em] ${plan.color === "pink" ? "text-pink-300" : plan.color === "gold" ? "text-yellow-300" : "text-cyan-300"}`}>{plan.name}</span>{plan.name === "ELITE" && <Crown size={16} className="text-yellow-300" />}</div><div className="font-display text-3xl text-white">{plan.price}<span className="font-mono text-[10px] text-white/30"> / MO</span></div><div className="mt-2 font-mono text-[10px] text-white/35">{plan.annual}</div><div className="my-6 h-px bg-white/10" /><ul className="space-y-3">{plan.features.map(f => <li key={f} className="flex items-center gap-2 text-xs text-white/65"><Check size={14} className={plan.color === "pink" ? "text-pink-300" : "text-cyan-300"} />{f}</li>)}</ul><button onClick={() => openPaywall(`${plan.name} Plan`, Number(plan.price.slice(1)))} className={`mt-8 w-full rounded-lg py-3 text-[10px] font-bold tracking-widest ${plan.color === "pink" ? "btn-pink" : "btn-secondary"}`}>{plan.name === "PRO" ? "UPGRADE TO PRO" : `CHOOSE ${plan.name}`}</button></div>)}</div><div className="glass mt-8 rounded-2xl p-5"><div className="mb-4 font-mono text-[9px] tracking-[.2em] text-white/35">ADD-ONS / PAY AS YOU GO</div><div className="grid gap-3 sm:grid-cols-3"><Addon name="1 Proxy" price="$2.99" /><Addon name="10 Mails" price="$4.99" /><Addon name="1 Number" price="$0.50" /></div></div></div>; }
 function Addon({ name, price }: { name: string; price: string }) { return <div className="flex items-center justify-between rounded-lg border border-white/8 bg-white/[.025] px-4 py-3"><span className="text-xs text-white/60">{name}</span><span className="font-mono text-xs text-cyan-300">{price}</span></div>; }
@@ -247,11 +290,12 @@ export default function Home() {
     if (path === "/proxies") return <AppLayout path={path} navigate={navigate}><Proxies openPaywall={openPaywall} navigate={navigate} /></AppLayout>;
     if (path === "/temp-mail") return <AppLayout path={path} navigate={navigate}><TempMail openPaywall={openPaywall} navigate={navigate} /></AppLayout>;
     if (path === "/numbers") return <AppLayout path={path} navigate={navigate}><Numbers openPaywall={openPaywall} /></AppLayout>;
+    if (path === "/app/wallet") return <WalletRecharge />;
     if (path === "/wallet") return <AppLayout path={path} navigate={navigate}><WalletPage /></AppLayout>;
     if (path === "/pricing") return <AppLayout path={path} navigate={navigate}><Pricing openPaywall={openPaywall} /></AppLayout>;
     if (path === "/settings") return <AppLayout path={path} navigate={navigate}><SettingsPage /></AppLayout>;
     if (path === "/dashboard") return <AppLayout path={path} navigate={navigate}><Dashboard navigate={navigate} /></AppLayout>;
     return <LandingPage navigate={navigate} />;
   }, [path, navigate]);
-  return <>{page}{paywall && <Paywall name={paywall.name} price={paywall.price} close={() => setPaywall(null)} goWallet={() => { setPaywall(null); navigate("/wallet"); toast.success("Continue in Wallet", { description: "Choose your payment method from the Wallet." }); }} />}</>;
+  return <>{page}{paywall && <Paywall name={paywall.name} price={paywall.price} close={() => setPaywall(null)} goWallet={() => { setPaywall(null); navigate("/app/wallet"); toast.success("Continue in Wallet", { description: "Fund your wallet with M-Pesa Swift Wallet." }); }} />}</>;
 }

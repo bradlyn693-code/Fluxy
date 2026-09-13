@@ -3,7 +3,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { createOrder, createTempEmail, createWalletTransaction, getDashboardData, hasActiveProxyPlan } from "./db";
+import { createOrder, createTempEmail, createWalletTransaction, creditWalletBalance, getDashboardData, hasActiveProxyPlan } from "./db";
 
 export const appRouter = router({
   system: systemRouter,
@@ -23,6 +23,7 @@ export const appRouter = router({
   }),
   wallet: router({
     deposit: protectedProcedure.input(z.object({ amountUsd: z.coerce.number().positive(), method: z.string().min(1) })).mutation(async ({ ctx, input }) => createWalletTransaction(ctx.user.id, { ...input, amountUsd: input.amountUsd.toFixed(2) })),
+    credit: protectedProcedure.input(z.object({ amountUsd: z.coerce.number().positive() })).mutation(async ({ ctx, input }) => creditWalletBalance(ctx.user.id, input.amountUsd.toFixed(2))),
   }),
   tempMail: router({
     planStatus: protectedProcedure.query(({ ctx }) => hasActiveProxyPlan(ctx.user.id)),
