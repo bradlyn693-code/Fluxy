@@ -214,11 +214,12 @@ function WalletRecharge() {
 
     setTimeout(() => {
       setShow(false);
+      window.history.pushState({}, "", "/dashboard?openMenu=true");
+      window.dispatchEvent(new PopStateEvent("popstate"));
       window.dispatchEvent(new CustomEvent("openSidebar"));
       window.dispatchEvent(new CustomEvent("toggleSidebar"));
       const sheetTrigger = document.querySelector("[data-sidebar-trigger]") as HTMLElement | null;
       if (sheetTrigger) sheetTrigger.click();
-      window.history.back();
     }, 250);
   };
 
