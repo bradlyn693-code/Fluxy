@@ -141,6 +141,14 @@ function AppLayout({ path, navigate, children }: { path: string; navigate: (path
       window.history.replaceState({}, "", "/dashboard");
     }
   }, []);
+  useEffect(() => {
+    const openWallet = () => {
+      setMobileOpen(false);
+      setWalletOpen(true);
+    };
+    window.addEventListener("openWallet", openWallet);
+    return () => window.removeEventListener("openWallet", openWallet);
+  }, []);
   const handleLogout = async () => {
     try { localStorage.removeItem("flux-local-session"); setLocalOperator(null); if (user) await logout(); navigate("/login"); }
     catch (err) { toast.error(err instanceof Error ? err.message : "Logout failed. Please try again."); }
@@ -261,5 +269,5 @@ export default function Home() {
     if (path === "/dashboard") return <AppLayout path={path} navigate={navigate}><Dashboard navigate={navigate} /></AppLayout>;
     return <LandingPage navigate={navigate} />;
   }, [path, navigate]);
-  return <>{page}{paywall && <Paywall name={paywall.name} price={paywall.price} close={() => setPaywall(null)} goWallet={() => { setPaywall(null); navigate("/app/wallet"); toast.success("Continue in Wallet", { description: "Fund your wallet with M-Pesa Swift Wallet." }); }} />}</>;
+  return <>{page}{paywall && <Paywall name={paywall.name} price={paywall.price} close={() => setPaywall(null)} goWallet={() => { setPaywall(null); window.dispatchEvent(new CustomEvent("openWallet")); toast.success("Continue in Wallet", { description: "Fund your wallet with M-Pesa Swift Wallet." }); }} />}</>;
 }
